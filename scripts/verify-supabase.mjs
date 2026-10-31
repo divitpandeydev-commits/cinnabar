@@ -12,10 +12,44 @@
  * 8. Authorized deletion via manage_key succeeds, while wrong key fails
  */
 
+import fs from "fs";
+import path from "path";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+// Automatically parse .env.local or .env if present
+function loadEnvFile(file) {
+  try {
+    const full = path.join(process.cwd(), file);
+    if (!fs.existsSync(full)) return;
+    const content = fs.readFileSync(full, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx !== -1) {
+        const key = trimmed.slice(0, idx).trim();
+        let val = trimmed.slice(idx + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+loadEnvFile(".env.local");
+loadEnvFile(".env");
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log("========================================================");
@@ -23,14 +57,22 @@ console.log("  CINNABAR SUPABASE DATABASE SECURITY VERIFICATION TEST ");
 console.log("========================================================");
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.log("\n[SKIPPED] SUPABASE_URL or SUPABASE_ANON_KEY not set in environment.");
-  console.log("To verify against a live Supabase instance:");
-  console.log("  $env:SUPABASE_URL='https://your-project.supabase.co'");
-  console.log("  $env:SUPABASE_ANON_KEY='your-anon-key'");
-  console.log("  $env:SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'");
+  console.log("\n[STATUS: CREDENTIALS REQUIRED]");
+  console.log("To run verification against your live Supabase project, provide your credentials.");
+  console.log("\nOption 1: Add them to .env.local");
+  console.log('  SUPABASE_URL="https://your-project.supabase.co"');
+  console.log('  SUPABASE_ANON_KEY="your-anon-key"');
+  console.log('  SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"');
+  console.log("\nOption 2: Run in PowerShell with environment variables:");
+  console.log('  $env:SUPABASE_URL="https://your-project.supabase.co"');
+  console.log('  $env:SUPABASE_ANON_KEY="your-anon-key"');
+  console.log('  $env:SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"');
   console.log("  node scripts/verify-supabase.mjs\n");
   process.exit(0);
 }
+
+console.log(`Connecting to Supabase at: ${SUPABASE_URL}`);
+console.log(`Service Role Key: ${SUPABASE_SERVICE_ROLE_KEY ? "CONFIGURED (Admin tests enabled)" : "NOT PROVIDED (Skipping admin tests)"}`);
 
 const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
@@ -156,4 +198,3 @@ run().catch((err) => {
   console.error("Verification script error:", err);
   process.exit(1);
 });
-
