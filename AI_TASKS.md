@@ -30,24 +30,27 @@
   - Built `QRCodeModal.tsx` rendering high-density QR code with PNG download capability.
   - Built `UrlHistory.tsx` with search filtering, click indicators, and instant deletion.
   - Built `AnalyticsPreview.tsx` displaying real-time links, clicks, and live telemetry log stream.
-- [x] **Phase 8 & 9 — Production Security Audit & Verification**:
+- [x] **Phase 8 & 9 — Production Security Audit & Hardening**:
   - Patched SSRF vulnerability by blocking private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x).
   - Patched unauthorized deletion vulnerability with cryptographic `manageKey` token enforcement.
   - Executed automated test suite (`scripts/test-e2e.mjs`) covering 13 test suites and 23 assertions passed with 0 failures.
   - Verified zero-error production build (`npm run build`).
-- [x] **Phase 10 — GitHub Remote Configuration & Security Clearance**:
-  - Configured remote origin: `https://github.com/divitpandeydev-commits/cinnabar.git`.
-  - Audited all tracked files to verify zero credential or secret exposure.
-  - Renamed local branch to `main` with complete preserved commit history (`b6ee1b1`, `7179ac2`, `2680dad`).
+- [x] **Phase 10 — Supabase RLS Policy Hardening**:
+  - Authored hardened idempotent `supabase/schema.sql`.
+  - Dropped overly permissive RLS policies (`SELECT USING (true)`, `DELETE USING (true)`, `INSERT WITH CHECK (true)`).
+  - Implemented `delete_link_with_key`, `create_short_link`, and `record_link_click` stored procedures with `SECURITY DEFINER`.
+  - Created secure `public_links` view and revoked `manage_key` selection from public `anon` role.
+  - Updated `src/lib/db.ts` to query sanitized views and use RPC functions.
+  - Verified zero `manage_key` leakage in database queries and API responses.
+  - Preserved 100% of existing table data.
 
 ## 2. Currently Working
 - [ ] **GitHub Authentication & First Push**:
-  - Waiting for GitHub authentication token or user interactive terminal push.
+  - Ready for user push to `https://github.com/divitpandeydev-commits/cinnabar.git`.
 
 ## 3. Pending Tasks
 - [ ] **Phase 11 — Live Deployment & Production Smoke Testing**:
-  - Deploy to Vercel.
-  - Connect production Supabase PostgreSQL database.
+  - Deploy to Vercel with Supabase environment variables.
   - Verify live public URL and redirection across internet.
 
 ## 4. Future Improvements

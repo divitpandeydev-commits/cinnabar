@@ -30,13 +30,34 @@ async function runProductionTestSuite() {
   console.log("   CINNABAR PRODUCTION READINESS & SECURITY TEST ");
   console.log("=================================================");
 
-  console.log("\n[SETUP] Starting Next.js production server on port 3002...");
-  const server = spawn("npx", ["next", "start", "-p", "3002"], {
+  const PORT = 3003;
+  console.log(`\n[SETUP] Starting Next.js production server on port ${PORT}...`);
+  const server = spawn("npx", ["next", "start", "-p", String(PORT)], {
     stdio: "inherit",
     shell: true,
   });
 
-  await wait(5000);
+  // Robust readiness polling
+  let serverReady = false;
+  for (let i = 0; i < 25; i++) {
+    await wait(1000);
+    try {
+      const ping = await request({ hostname: "127.0.0.1", port: PORT, path: "/", method: "GET" });
+      if (ping.statusCode === 200) {
+        serverReady = true;
+        break;
+      }
+    } catch {
+      // server still starting
+    }
+  }
+
+  if (!serverReady) {
+    server.kill("SIGINT");
+    throw new Error("Server failed to become ready within timeout.");
+  }
+
+  console.log(`✓ Server ready and accepting connections on port ${PORT}`);
 
   let passedCount = 0;
   let failedCount = 0;
@@ -57,7 +78,7 @@ async function runProductionTestSuite() {
     // TEST 1: Homepage Availability
     // -------------------------------------------------------------------------
     console.log("\n[TEST 1] Verifying Homepage (GET /)");
-    const home = await request({ hostname: "127.0.0.1", port: 3002, path: "/", method: "GET" });
+    const home = await request({ hostname: "127.0.0.1", port: PORT, path: "/", method: "GET" });
     assert(home.statusCode === 200, `Homepage returned status ${home.statusCode}`);
     assert(home.body.includes("Cinnabar"), "Homepage contains brand identity");
 
@@ -71,7 +92,7 @@ async function runProductionTestSuite() {
     const shortenRes = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -98,7 +119,7 @@ async function runProductionTestSuite() {
     const customRes = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -117,7 +138,7 @@ async function runProductionTestSuite() {
     console.log("\n[TEST 4] Verifying HTTP 307 Redirection (GET /linux-kernel)");
     const redirectRes = await request({
       hostname: "127.0.0.1",
-      port: 3002,
+      port: PORT,
       path: "/linux-kernel",
       method: "GET",
     });
@@ -131,7 +152,7 @@ async function runProductionTestSuite() {
     const dupRes = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -154,7 +175,7 @@ async function runProductionTestSuite() {
     const reservedRes = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -174,7 +195,7 @@ async function runProductionTestSuite() {
     const ssrfRes1 = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -190,7 +211,7 @@ async function runProductionTestSuite() {
     const ssrfRes2 = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -210,7 +231,7 @@ async function runProductionTestSuite() {
     const xssRes = await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -228,7 +249,7 @@ async function runProductionTestSuite() {
     console.log("\n[TEST 9] Verifying Unauthorized Deletion Defense (403 Forbidden)");
     const unauthDel = await request({
       hostname: "127.0.0.1",
-      port: 3002,
+      port: PORT,
       path: "/api/links?code=linux-kernel",
       method: "DELETE",
     });
@@ -237,7 +258,7 @@ async function runProductionTestSuite() {
     console.log("\n[TEST 10] Verifying Authorized Deletion with manageKey");
     const authDel = await request({
       hostname: "127.0.0.1",
-      port: 3002,
+      port: PORT,
       path: `/api/links?code=linux-kernel&key=${linuxManageKey}`,
       method: "DELETE",
     });
@@ -255,7 +276,7 @@ async function runProductionTestSuite() {
     await request(
       {
         hostname: "127.0.0.1",
-        port: 3002,
+        port: PORT,
         path: "/api/shorten",
         method: "POST",
         headers: {
@@ -269,7 +290,7 @@ async function runProductionTestSuite() {
     await wait(2000);
     const expRedirect = await request({
       hostname: "127.0.0.1",
-      port: 3002,
+      port: PORT,
       path: "/expired-test",
       method: "GET",
     });
@@ -277,10 +298,10 @@ async function runProductionTestSuite() {
     assert(expRedirect.headers.location.includes("/link-expired"), `Destination is /link-expired (got ${expRedirect.headers.location})`);
 
     // -------------------------------------------------------------------------
-    // TEST 12: High-Density QR Code Generator
+    // TEST 12: High-Density QR Code Engine
     // -------------------------------------------------------------------------
     console.log("\n[TEST 12] Verifying QR Code Engine Generation");
-    const testQrDataUrl = await QRCode.toDataURL("http://localhost:3002/linux-kernel", {
+    const testQrDataUrl = await QRCode.toDataURL(`http://localhost:${PORT}/linux-kernel`, {
       width: 400,
       margin: 2,
     });
@@ -292,7 +313,7 @@ async function runProductionTestSuite() {
     console.log("\n[TEST 13] Verifying Platform Telemetry (GET /api/stats)");
     const statsRes = await request({
       hostname: "127.0.0.1",
-      port: 3002,
+      port: PORT,
       path: "/api/stats",
       method: "GET",
     });

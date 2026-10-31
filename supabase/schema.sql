@@ -1,9 +1,9 @@
 -- ====================================================================
--- Cinnabar URL Shortener & Link Intelligence — PostgreSQL Schema
--- Compatible with Supabase, Neon, AWS RDS, and self-hosted PostgreSQL
+-- Cinnabar URL Shortener & Link Intelligence — Hardened PostgreSQL Schema
+-- Idempotent & Safe for Existing Supabase Deployments
 -- ====================================================================
 
--- 1. Create links table
+-- 1. Ensure links table exists (does NOT alter existing data)
 CREATE TABLE IF NOT EXISTS public.links (
   id TEXT PRIMARY KEY,
   code TEXT UNIQUE NOT NULL,
@@ -16,12 +16,12 @@ CREATE TABLE IF NOT EXISTS public.links (
   click_logs JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
--- 2. Create performance indexes
+-- 2. Performance indexes
 CREATE INDEX IF NOT EXISTS idx_links_code ON public.links (lower(code));
 CREATE INDEX IF NOT EXISTS idx_links_created_at ON public.links (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_links_expires_at ON public.links (expires_at) WHERE expires_at IS NOT NULL;
 
--- 3. Atomic click increment stored procedure
+-- 3. Stored Procedure: Atomic click recording (SECURITY DEFINER)
 CREATE OR REPLACE FUNCTION public.record_link_click(
   p_code TEXT,
   p_click_log JSONB
@@ -44,21 +44,136 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 4. Enable Row Level Security (RLS)
+-- 4. Stored Procedure: Authorized link deletion with manage_key (SECURITY DEFINER)
+-- Ensures users CANNOT delete links belonging to other users.
+CREATE OR REPLACE FUNCTION public.delete_link_with_key(
+  p_code TEXT,
+  p_manage_key TEXT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_deleted_count INT;
+BEGIN
+  IF p_manage_key IS NULL OR trim(p_manage_key) = '' THEN
+    RETURN FALSE;
+  END IF;
+
+  DELETE FROM public.links
+  WHERE lower(code) = lower(p_code)
+    AND manage_key = p_manage_key;
+
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  RETURN v_deleted_count > 0;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. Stored Procedure: Secure link creation (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.create_short_link(
+  p_id TEXT,
+  p_code TEXT,
+  p_original_url TEXT,
+  p_expires_at TIMESTAMPTZ,
+  p_manage_key TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_new_link public.links%ROWTYPE;
+BEGIN
+  IF p_code IS NULL OR trim(p_code) = '' THEN
+    RAISE EXCEPTION 'Short code cannot be empty';
+  END IF;
+
+  IF p_original_url IS NULL OR trim(p_original_url) = '' THEN
+    RAISE EXCEPTION 'Destination URL cannot be empty';
+  END IF;
+
+  IF p_manage_key IS NULL OR trim(p_manage_key) = '' THEN
+    RAISE EXCEPTION 'Manage key cannot be empty';
+  END IF;
+
+  INSERT INTO public.links (
+    id,
+    code,
+    original_url,
+    created_at,
+    expires_at,
+    clicks,
+    last_clicked_at,
+    manage_key,
+    click_logs
+  ) VALUES (
+    p_id,
+    p_code,
+    p_original_url,
+    timezone('utc'::text, now()),
+    p_expires_at,
+    0,
+    NULL,
+    p_manage_key,
+    '[]'::jsonb
+  )
+  RETURNING * INTO v_new_link;
+
+  RETURN jsonb_build_object(
+    'id', v_new_link.id,
+    'code', v_new_link.code,
+    'originalUrl', v_new_link.original_url,
+    'createdAt', v_new_link.created_at,
+    'expiresAt', v_new_link.expires_at,
+    'clicks', v_new_link.clicks,
+    'manageKey', v_new_link.manage_key
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. Secure View: Public view omitting manage_key
+CREATE OR REPLACE VIEW public.public_links AS
+SELECT 
+  id,
+  code,
+  original_url,
+  created_at,
+  expires_at,
+  clicks,
+  last_clicked_at,
+  click_logs
+FROM public.links;
+
+-- 7. Hardened Row Level Security (RLS) Configuration
 ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read links (necessary for public redirection)
-CREATE POLICY "Allow public read access to links"
+-- Drop legacy overly permissive policies safely
+DROP POLICY IF EXISTS "Allow public read access to links" ON public.links;
+DROP POLICY IF EXISTS "Allow public insert to links" ON public.links;
+DROP POLICY IF EXISTS "Allow authorized deletion" ON public.links;
+DROP POLICY IF EXISTS "Allow public select of public columns" ON public.links;
+DROP POLICY IF EXISTS "Deny direct public deletion" ON public.links;
+DROP POLICY IF EXISTS "Deny direct public insertion" ON public.links;
+
+-- Revoke direct selection of manage_key column from public roles
+REVOKE SELECT (manage_key) ON public.links FROM anon, authenticated;
+
+-- Allow public read of non-sensitive columns (required for redirect & stats)
+CREATE POLICY "Allow public select of public columns"
   ON public.links FOR SELECT
   USING (true);
 
--- Allow anyone to insert links
-CREATE POLICY "Allow public insert to links"
-  ON public.links FOR INSERT
-  WITH CHECK (true);
-
--- Allow deletion only with matching manage_key or service role
-CREATE POLICY "Allow authorized deletion"
+-- Disallow direct deletion from public anon/authenticated clients
+-- (All public deletions MUST go through delete_link_with_key RPC)
+CREATE POLICY "Deny direct public deletion"
   ON public.links FOR DELETE
-  USING (true);
+  TO anon, authenticated
+  USING (false);
 
+-- Disallow direct insertion from public anon/authenticated clients
+-- (All public insertions MUST go through create_short_link RPC or service_role)
+CREATE POLICY "Deny direct public insertion"
+  ON public.links FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (false);
+
+-- 8. Grant correct operational permissions
+GRANT SELECT ON public.public_links TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_link_click(TEXT, JSONB) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_link_with_key(TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_short_link(TEXT, TEXT, TEXT, TIMESTAMPTZ, TEXT) TO anon, authenticated, service_role;

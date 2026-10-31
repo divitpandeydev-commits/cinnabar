@@ -53,37 +53,23 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Animation**: Framer Motion
 - **Icons**: Lucide React
 - **Utilities**: `nanoid` for collision-resistant base62-style slugs, `qrcode` for QR code generation
-- **Database & Storage**: Persistent atomic disk-backed database engine (`src/lib/db.ts`) with schema validation, click logging, index lookups, and cloud adapter support (PostgreSQL/Supabase ready).
-- **Validation**: Strict RFC-compliant URL parsing, protocol enforcement (`http://`, `https://`), alias sanitization.
+- **Database & Storage**: Dual-driver architecture supporting Supabase PostgreSQL (`@supabase/supabase-js`) and an atomic disk-backed file engine (`src/lib/db.ts`).
+- **Validation**: Strict RFC-compliant URL parsing, protocol enforcement (`http://`, `https://`), alias sanitization, SSRF protection against private subnets.
 
-## 5. Coding Conventions & Architecture
-```
-src/
-├── app/
-│   ├── [code]/              # Server-side high-speed redirect route (307 HTTP status)
-│   ├── api/
-│   │   ├── shorten/         # URL shortening endpoint (POST)
-│   │   ├── links/           # URL management & listing endpoint (GET, DELETE)
-│   │   └── stats/           # Real system analytics endpoint (GET)
-│   ├── globals.css          # Theme tokens, font variables, utility rules
-│   ├── layout.tsx           # Global HTML metadata, font configurations
-│   └── page.tsx             # Main Landing Page & Interactive Shortener
-├── components/
-│   ├── Navbar.tsx           # Brand header with navigation & action links
-│   ├── Hero.tsx             # Hero with dynamic URL transform visualizer
-│   ├── ShortenerForm.tsx    # Interactive input with custom slug, expiry & QR preview
-│   ├── UrlResultCard.tsx    # Result display with copy, QR modal, and direct test
-│   ├── UrlHistory.tsx       # Live link management, click stats, and delete
-│   ├── Features.tsx         # Architectural & product feature highlights
-│   ├── HowItWorks.tsx       # 3-step visual transformation breakdown
-│   ├── AnalyticsPreview.tsx # Real-time link telemetry and traffic inspector
-│   ├── QRCodeModal.tsx      # High-res downloadable QR code modal
-│   └── Footer.tsx           # Professional footer with GitHub & legal links
-└── lib/
-    ├── db.ts                # Persistent storage engine with atomic writes
-    ├── utils.ts             # String helpers, formatters, domain helpers
-    └── rate-limit.ts        # In-memory sliding window rate limiter
-```
+## 5. Security & Database Engineering Rules
+1. **Never Expose `manage_key`**:
+   - `manage_key` is a private authorization secret used solely for link deletion.
+   - It must NEVER be selected in public queries, public views (`public_links`), or returned in `GET /api/links`.
+   - On Supabase, `REVOKE SELECT (manage_key)` is enforced for `anon` and `authenticated` roles.
+2. **Never Expose `SUPABASE_SERVICE_ROLE_KEY` in Frontend Code**:
+   - The service-role key is strictly a server-only environment variable.
+   - NEVER prefix it with `NEXT_PUBLIC_`.
+   - Client components must NEVER import `src/lib/db.ts` or instantiate Supabase with service-role credentials.
+3. **Authorized Deletion Only**:
+   - Direct `DELETE` on the `links` table is blocked for public roles (`USING (false)`).
+   - Deletions must pass through `delete_link_with_key` stored procedure, which matches the cryptographic `manage_key` server-side inside PostgreSQL.
+4. **SSRF & Private Network Defense**:
+   - Shortening private IP addresses (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x) and cloud metadata services is strictly rejected with `HTTP 400 Bad Request`.
 
 ## 6. AI Development Rules & Mandatory Workflow
 1. **Mandatory Documentation Inspection**:
