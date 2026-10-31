@@ -4,7 +4,9 @@
 - **Project Name**: Cinnabar (Artisanal URL Shortener & Link Intelligence)
 - **Initiated**: October 31, 2026
 - **Architecture**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 + Framer Motion + Supabase PostgreSQL
-- **Current Status**: Production deployment ready. Dual-driver database implemented, enterprise security audit passed, all 23 automated integration tests verified.
+- **GitHub Repository**: `https://github.com/divitpandeydev-commits/cinnabar.git`
+- **Active Branch**: `main`
+- **Current Status**: Production build verified, security audited, remote origin linked and verified. Ready for GitHub push authentication.
 
 ## 2. Design System & Visual Identity
 - **Palette**: Strictly adheres to the **Deep Red and Dark Brown** combination:
@@ -20,50 +22,26 @@
   - Real-time link search filter and instant deletion in link ledger.
 
 ## 3. Production Architecture & Security Hardening
+- **Dual-Driver Database Engine (`src/lib/db.ts`)**:
+  - Supabase PostgreSQL cloud driver automatically enabled when `SUPABASE_URL` and `SUPABASE_ANON_KEY` are provided.
+  - Fallback atomic file engine for offline zero-config development.
+  - Ready-to-run SQL migration schema provided in `supabase/schema.sql`.
+- **Security Hardening**:
+  - SSRF protection against private subnets (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x).
+  - Cryptographic `manageKey` authorization preventing unauthorized link deletions (HTTP 403 defense).
+  - Trusted proxy header client IP rate limiting (`CF-Connecting-IP`, `X-Forwarded-For`).
+  - Reserved keyword guard protecting system routes.
 
-### Dual-Driver Database Engine (`src/lib/db.ts`)
-- **Cloud Driver (Supabase PostgreSQL)**:
-  - Enabled automatically when `SUPABASE_URL` and `SUPABASE_ANON_KEY` are provided.
-  - Solves the serverless ephemeral filesystem problem on Vercel/Netlify.
-  - All records, click counts, timestamps, and logs persist permanently across cold starts.
-  - Authored `supabase/schema.sql` with performance indexes on `code`, `created_at`, and `expires_at`, stored procedure `record_link_click` for atomic updates, and Row Level Security (RLS) policies.
-- **Local Engine (Atomic Disk Engine)**:
-  - Fallback engine using atomic `.tmp` writes and file renaming to prevent data corruption.
-  - Zero-config for local development and self-hosted environments.
-
-### Security Hardening Implemented
-1. **SSRF & Private Network Defense**:
-   - Strictly blocks private IP ranges: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `169.254.0.0/16`.
-   - Blocks cloud metadata endpoints: `169.254.169.254`, `metadata.google.internal`.
-   - Blocks non-HTTP protocols: `javascript:`, `data:`, `file:`, `vbscript:`.
-2. **Authorized Link Deletion Defense**:
-   - Generated a 32-character cryptographic `manageKey` for every shortened link.
-   - Deletion endpoint `DELETE /api/links?code=xyz&key=...` checks key authorization. Unauthorized attempts receive `403 Forbidden`.
-   - Browser stores `manageKey` in `localStorage` for seamless owner deletion.
-   - Global `ADMIN_SECRET` environment variable allows master operational deletions.
-3. **Advanced Rate Limiting**:
-   - Reads real client IP through trusted proxy headers (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`).
-4. **Collision & Reserved Slugs**:
-   - Case-insensitive collision detection and reserved keyword protection (`api`, `admin`, `links`, etc.).
-
-## 4. Verification & Testing Performed
-- **Production Build (`npm run build`)**: Passed with exit code 0.
-- **Automated Test Suite (`scripts/test-e2e.mjs`)**: 23 assertions executed and passed:
-  - Test 1: Homepage 200 OK.
-  - Test 2: Core shortening 201 Created with `manageKey`.
-  - Test 3: Custom vanity slug generation.
-  - Test 4: Dynamic redirect 307 to destination.
-  - Test 5: Duplicate custom slug returns 409 Conflict.
-  - Test 6: Reserved slug `/admin` returns 400 Bad Request.
-  - Test 7: SSRF attempt on `127.0.0.1` and `169.254.169.254` blocked with 400.
-  - Test 8: Malicious `javascript:` protocol rejected with 400.
-  - Test 9: Unauthorized deletion without key rejected with 403 Forbidden.
-  - Test 10: Authorized deletion with `manageKey` succeeded with 200 OK.
-  - Test 11: Link expiration redirected to `/link-expired`.
-  - Test 12: High-density QR code rendered valid PNG data URL.
-  - Test 13: Platform telemetry metrics returned active counts.
+## 4. Git & GitHub Integration Status
+- **Remote Origin**: Configured to `https://github.com/divitpandeydev-commits/cinnabar.git`.
+- **Pre-Upload Security Audit**: Passed. All `.env`, `.env.local`, `node_modules`, `.next`, and database files verified excluded from tracked tree.
+- **Commit History**:
+  - `b6ee1b1`: `feat: production architecture hardening, Supabase PostgreSQL dual-driver, and security enhancements`
+  - `7179ac2`: `feat: complete production-grade Cinnabar URL shortener platform`
+  - `2680dad`: `Initial commit from Create Next App`
+- **Authentication State**: GitHub rejected non-interactive password authentication during headless push. Awaiting token authentication or terminal credential helper sign-in.
 
 ## 5. Next Steps
-- Await user's GitHub repository URL.
-- Configure remote origin and push clean master branch.
-- Deploy to Vercel/Railway with Supabase PostgreSQL connection.
+- Complete GitHub authentication push.
+- Import repository into Vercel for public deployment.
+- Connect Supabase PostgreSQL instance using environment variables.

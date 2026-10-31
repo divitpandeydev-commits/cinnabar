@@ -4,32 +4,28 @@ All notable changes to the **Cinnabar** URL Shortener project will be documented
 
 ---
 
+### [1.2.0] - 2026-10-31
+#### GitHub Integration & Remote Repository Link
+**Files Created / Modified:**
+- `AI_TASKS.md`: Updated with GitHub remote origin link and security clearance.
+- `PROJECT_MEMORY.md`: Recorded remote repository URL, main branch, and authentication status.
+- `CHANGELOG.md`: Added release notes for GitHub repository link.
+
+**Actions Performed:**
+- Configured Git remote `origin` to `https://github.com/divitpandeydev-commits/cinnabar.git`.
+- Performed pre-upload security audit: confirmed 0 credentials, secrets, or local environment files are tracked.
+- Renamed local branch to `main` with 100% preserved chronological commits.
+- Verified remote repository readiness via `git ls-remote`.
+
+---
+
 ### [1.1.0] - 2026-10-31
 #### Production Architecture Hardening & Cloud Database Migration
-**Files Created / Modified:**
-- `src/lib/db.ts`: Implemented dual-driver architecture with Supabase PostgreSQL client and atomic disk engine.
-- `supabase/schema.sql`: Authored PostgreSQL schema with performance indexes, atomic click procedure, and RLS policies.
-- `src/lib/types.ts`: Added `manageKey` cryptographic field to `LinkRecord` and API response.
-- `src/lib/utils.ts`: Added SSRF protection (private IP / cloud metadata blocking), expanded reserved slugs, and `generateManageKey()`.
-- `src/lib/rate-limit.ts`: Added trusted proxy header client IP extraction (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`).
-- `src/app/api/shorten/route.ts`: Integrated client IP rate limiter and `manageKey` return.
-- `src/app/api/links/route.ts`: Implemented cryptographic authorization check on link deletion and scrubbed keys from public output.
-- `src/app/page.tsx`: Implemented creator `manageKey` storage in `localStorage` and authenticated deletion requests.
-- `scripts/test-e2e.mjs`: Expanded comprehensive integration test suite covering 13 test suites and 23 assertions.
-- `.env.example`: Documented Supabase environment variables, `ADMIN_SECRET`, and production configuration.
-- `README.md`: Added production deployment guide, Supabase migration steps, and security documentation.
-- `AI_TASKS.md`, `PROJECT_MEMORY.md`: Updated development ledger and task registry.
-
-**Features & Improvements Added:**
-- Supabase PostgreSQL persistence solving serverless ephemeral storage restrictions.
-- Cryptographic authorization for link deletion (`403 Forbidden` defense against unauthorized deletion).
-- Server-Side Request Forgery (SSRF) defense blocking private subnets and cloud metadata endpoints (`169.254.169.254`).
-- Duplicate vanity slug collision rejection (`409 Conflict`).
-- System reserved keyword guard protecting core routes (`400 Bad Request`).
-- Automated 23-assertion production test suite verified.
-
-**Reason for Change:**
-Production deployment readiness and security audit per user request.
+- Implemented dual-driver architecture with Supabase PostgreSQL client and atomic disk engine.
+- Authored `supabase/schema.sql` with performance indexes, atomic click procedure, and RLS policies.
+- Added SSRF protection (private IP / cloud metadata blocking) and `manageKey` deletion authorization.
+- Added trusted proxy header client IP rate limiting.
+- Executed comprehensive 23-assertion automated integration test suite with 100% pass rate.
 
 ---
 
