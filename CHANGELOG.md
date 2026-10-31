@@ -4,22 +4,31 @@ All notable changes to the **Cinnabar** URL Shortener project will be documented
 
 ---
 
-### [1.3.0] - 2026-10-31
-#### Supabase RLS Security Hardening & Zero-Exposure Architecture
+### [1.4.0] - 2026-10-31
+#### Advanced PostgreSQL Privilege & SECURITY DEFINER Hardening
 **Files Created / Modified:**
-- `supabase/schema.sql`: Authored hardened idempotent SQL migration script. Dropped overly permissive policies (`SELECT USING (true)`, `DELETE USING (true)`, `INSERT WITH CHECK (true)`).
-- `src/lib/db.ts`: Updated Supabase queries to target `public_links` view, eliminating `manage_key` query leakage. Integrated `delete_link_with_key` and `create_short_link` RPC procedures.
-- `.env.example`: Clarified server-only `SUPABASE_SERVICE_ROLE_KEY` usage and warned against `NEXT_PUBLIC_` prefixes.
-- `AGENTS.md`: Added Section 5 ("Security & Database Engineering Rules") documenting `manage_key` isolation and server-only service-role conventions.
-- `PROJECT_MEMORY.md`: Detailed RLS policy restructuring and stored procedure defenses.
-- `AI_TASKS.md`: Marked Supabase RLS hardening as completed.
-- `scripts/test-e2e.mjs`: Added automated test server polling and verified all 23 assertions.
+- `supabase/schema.sql`: 
+  - Revoked all table-level privileges and table-level `SELECT` on `public.links` from `PUBLIC, anon, authenticated` before granting column-level `SELECT` on safe columns.
+  - Added `WITH (security_barrier = true)` to `public.public_links` view.
+  - Set `SET search_path = public, pg_catalog, pg_temp;` on `record_link_click`, `delete_link_with_key`, and `create_short_link`.
+  - Fully qualified all table references (`public.links`).
+  - Revoked default `PUBLIC` execution privileges from all stored procedures and granted them strictly to `service_role`.
+- `scripts/verify-supabase.mjs`: Authored live Supabase database verification script checking all 8 security conditions.
+- `AI_TASKS.md`: Updated development task registry.
+- `PROJECT_MEMORY.md`: Recorded privilege architecture and security definer defense ledger.
 
 **Security Enhancements:**
-- **Zero `manage_key` Leakage**: Revoked column-level `SELECT (manage_key)` from public `anon` and `authenticated` roles in PostgreSQL. Created `public.public_links` view that omits `manage_key`.
-- **Authorized Deletion Enforced in Database**: Revoked direct `DELETE` on table `public.links` for public roles (`USING (false)`). Link deletion is strictly guarded by `delete_link_with_key` stored procedure, ensuring users can never delete other users' links.
-- **Controlled Ingestion**: Revoked direct `INSERT` on table `public.links` for public roles (`WITH CHECK (false)`), routing writes through `create_short_link` procedure or server-side service role.
-- **Preserved Existing Data**: Ensured all SQL migration statements are non-destructive and idempotent.
+- Fixed PostgreSQL privilege additive behavior: eliminated risk of table-level `SELECT` overriding column-level `manage_key` restrictions.
+- Eliminated search-path hijacking risk on all `SECURITY DEFINER` procedures.
+- Prevented unauthorized public execution of stored procedures over PostgREST (`anon` cannot inflate clicks or create spam links via direct RPC).
+
+---
+
+### [1.3.0] - 2026-10-31
+#### Supabase RLS Security Hardening & Zero-Exposure Architecture
+- Authored initial hardened idempotent SQL migration script.
+- Replaced permissive policies (`SELECT USING (true)`, `DELETE USING (true)`, `INSERT WITH CHECK (true)`).
+- Updated `src/lib/db.ts` to query `public_links` view.
 
 ---
 
@@ -35,10 +44,8 @@ All notable changes to the **Cinnabar** URL Shortener project will be documented
 ### [1.1.0] - 2026-10-31
 #### Production Architecture Hardening & Cloud Database Migration
 - Implemented dual-driver architecture with Supabase PostgreSQL client and atomic disk engine.
-- Authored initial `supabase/schema.sql` with performance indexes, atomic click procedure, and RLS policies.
-- Added SSRF protection (private IP / cloud metadata blocking) and `manageKey` deletion authorization.
+- Added SSRF protection and `manageKey` deletion authorization.
 - Added trusted proxy header client IP rate limiting.
-- Executed comprehensive 23-assertion automated integration test suite with 100% pass rate.
 
 ---
 

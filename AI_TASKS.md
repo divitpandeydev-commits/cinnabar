@@ -35,21 +35,20 @@
   - Patched unauthorized deletion vulnerability with cryptographic `manageKey` token enforcement.
   - Executed automated test suite (`scripts/test-e2e.mjs`) covering 13 test suites and 23 assertions passed with 0 failures.
   - Verified zero-error production build (`npm run build`).
-- [x] **Phase 10 — Supabase RLS Policy Hardening**:
-  - Authored hardened idempotent `supabase/schema.sql`.
-  - Dropped overly permissive RLS policies (`SELECT USING (true)`, `DELETE USING (true)`, `INSERT WITH CHECK (true)`).
-  - Implemented `delete_link_with_key`, `create_short_link`, and `record_link_click` stored procedures with `SECURITY DEFINER`.
-  - Created secure `public_links` view and revoked `manage_key` selection from public `anon` role.
-  - Updated `src/lib/db.ts` to query sanitized views and use RPC functions.
-  - Verified zero `manage_key` leakage in database queries and API responses.
-  - Preserved 100% of existing table data.
+- [x] **Phase 10 & 11 — Advanced Supabase Privilege Hardening & Security Definer Defense**:
+  - Fixed table-level privilege issue: revoked table-level `SELECT` on `public.links` from `PUBLIC, anon, authenticated` before granting column-level read.
+  - Added `security_barrier = true` to `public.public_links` view.
+  - Hardened `SECURITY DEFINER` functions with `SET search_path = public, pg_catalog, pg_temp;` and fully qualified objects to block search-path hijacking.
+  - Revoked default `PUBLIC` execution privileges from all stored procedures (`record_link_click`, `create_short_link`, `delete_link_with_key`), restricting execution strictly to `service_role`.
+  - Authored standalone live Supabase verification script `scripts/verify-supabase.mjs`.
+  - Verified all 23 integration and security assertions with zero failures.
 
 ## 2. Currently Working
 - [ ] **GitHub Authentication & First Push**:
   - Ready for user push to `https://github.com/divitpandeydev-commits/cinnabar.git`.
 
 ## 3. Pending Tasks
-- [ ] **Phase 11 — Live Deployment & Production Smoke Testing**:
+- [ ] **Phase 12 — Live Deployment & Production Smoke Testing**:
   - Deploy to Vercel with Supabase environment variables.
   - Verify live public URL and redirection across internet.
 
