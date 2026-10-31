@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Warm cream paper surface */
+  --bg-page: #FAF7F2;
+  --bg-card: #FFFFFF;
+  --bg-surface-warm: #F4EFEB;
+  --bg-surface-sunken: #EFE8DF;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Deep Red Lacquer Palette */
+  --red-deep: #7F1D1D;
+  --red-primary: #991B1B;
+  --red-accent: #B91C1C;
+  --red-vibrant: #DC2626;
+  --red-soft: #FEE2E2;
+  --red-subtle: #FEF2F2;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Roasted Espresso & Dark Brown Palette */
+  --brown-darkest: #180F0A;
+  --brown-deep: #241610;
+  --brown-rich: #321E16;
+  --brown-mid: #4A2E22;
+  --brown-border: #DCD3C7;
+  --brown-border-subtle: #E8E1D7;
+
+  /* Charcoal Typography */
+  --text-primary: #1C1917;
+  --text-secondary: #57534E;
+  --text-muted: #78716C;
+  --text-light: #FAF7F2;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: #991B1B;
+  color: #FFFFFF;
+}
+
+/* Custom refined scrollbar in brown/red tones */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D5C7B8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #991B1B;
+}
+
+/* Subtle dot grid pattern */
+.bg-warm-grid {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, rgba(120, 53, 15, 0.08) 1px, transparent 1px);
+}
+
+.bg-dark-grid {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, rgba(220, 38, 38, 0.12) 1px, transparent 1px);
+}
+
+/* Editorial subtle borders */
+.border-subtle-brown {
+  border-color: rgba(74, 46, 34, 0.12);
+}
+
+.border-warm-lacquer {
+  border-color: rgba(153, 27, 27, 0.22);
+}
+
+/* Focus styles */
+input:focus, button:focus-visible {
+  outline: none;
 }
