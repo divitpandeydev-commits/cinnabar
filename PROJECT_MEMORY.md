@@ -3,10 +3,10 @@
 ## 1. Project Synopsis
 - **Project Name**: Cinnabar (Artisanal URL Shortener & Link Intelligence)
 - **Initiated**: October 31, 2026
-- **Architecture**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 + Framer Motion
-- **Current Status**: Production build verified, all automated E2E tests passing with 100% success rate.
+- **Architecture**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 + Framer Motion + Supabase PostgreSQL
+- **Current Status**: Production deployment ready. Dual-driver database implemented, enterprise security audit passed, all 23 automated integration tests verified.
 
-## 2. Design System & Visual Identity Implemented
+## 2. Design System & Visual Identity
 - **Palette**: Strictly adheres to the **Deep Red and Dark Brown** combination:
   - Deep Red (`#991B1B` Rich Crimson, `#7F1D1D` Burgundy, `#B91C1C` Accent, `#DC2626` Vibrant)
   - Dark Brown (`#180F0A` Roasted Espresso, `#241610` Deep Chestnut, `#321E16` Rich Umber, `#4A2E22` Mid Brown)
@@ -19,50 +19,51 @@
   - Modal with downloadable high-res vector QR codes in espresso ink.
   - Real-time link search filter and instant deletion in link ledger.
 
-## 3. Architecture & Functional Components
+## 3. Production Architecture & Security Hardening
 
-### Storage Engine (`src/lib/db.ts`)
-- Implemented file-backed atomic JSON persistence stored in `data/urls.json`.
-- Uses `.tmp` file writing and atomic file rename to prevent database corruption during concurrent writes.
-- Includes in-memory lookup cache for sub-millisecond route resolution.
-- Click logging tracks timestamps, referrers, and device types (Desktop, Mobile, Tablet) up to 50 recent events per link.
-- Supports expiration checking on link retrieval.
-- Exposes `getGlobalStats()` for real platform metrics calculation.
+### Dual-Driver Database Engine (`src/lib/db.ts`)
+- **Cloud Driver (Supabase PostgreSQL)**:
+  - Enabled automatically when `SUPABASE_URL` and `SUPABASE_ANON_KEY` are provided.
+  - Solves the serverless ephemeral filesystem problem on Vercel/Netlify.
+  - All records, click counts, timestamps, and logs persist permanently across cold starts.
+  - Authored `supabase/schema.sql` with performance indexes on `code`, `created_at`, and `expires_at`, stored procedure `record_link_click` for atomic updates, and Row Level Security (RLS) policies.
+- **Local Engine (Atomic Disk Engine)**:
+  - Fallback engine using atomic `.tmp` writes and file renaming to prevent data corruption.
+  - Zero-config for local development and self-hosted environments.
 
-### Redirect Engine (`src/app/[code]/route.ts`)
-- High-speed HTTP 307 temporary redirect bypassing client-side waterfalls.
-- Captures `referer` and `user-agent` headers and logs telemetry asynchronously without adding latency to the visitor redirect.
-- Gracefully redirects invalid codes to `/link-not-found?code=...` and expired links to `/link-expired?code=...`.
-
-### API Routes
-- `POST /api/shorten`: URL validation, protocol normalization (`http://` / `https://`), custom alias sanitization, collision checking, expiration duration calculation, and IP rate limiting (30 requests/minute).
-- `GET /api/links`: Returns paginated links with calculated status and real click numbers.
-- `DELETE /api/links?code=...`: Deletes links from persistent storage.
-- `GET /api/stats`: Serves live counts for total links, total redirects, active links, and average latency.
-
-### User Interface Components
-- `Navbar.tsx`: Fixed header with brand badge, navigation links, GitHub shortcut, and mobile menu.
-- `Hero.tsx`: Typography-first hero section with compression visualizer and scroll invitation.
-- `ShortenerForm.tsx`: Input form with expandable advanced controls (custom alias & expiration selector).
-- `UrlResultCard.tsx`: Immediate visual display of shortened link with copy, test, and QR actions.
-- `UrlHistory.tsx`: Searchable link management ledger with click indicators and deletion.
-- `QRCodeModal.tsx`: High-resolution canvas/image QR generator with PNG download.
-- `Features.tsx`: 6 architectural highlight cards with Framer Motion staggered reveals.
-- `HowItWorks.tsx`: 3-step operational workflow.
-- `AnalyticsPreview.tsx`: Live platform metric counters and recent click stream feed.
-- `Footer.tsx`: Editorial footer with operational status and top scroll button.
+### Security Hardening Implemented
+1. **SSRF & Private Network Defense**:
+   - Strictly blocks private IP ranges: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `169.254.0.0/16`.
+   - Blocks cloud metadata endpoints: `169.254.169.254`, `metadata.google.internal`.
+   - Blocks non-HTTP protocols: `javascript:`, `data:`, `file:`, `vbscript:`.
+2. **Authorized Link Deletion Defense**:
+   - Generated a 32-character cryptographic `manageKey` for every shortened link.
+   - Deletion endpoint `DELETE /api/links?code=xyz&key=...` checks key authorization. Unauthorized attempts receive `403 Forbidden`.
+   - Browser stores `manageKey` in `localStorage` for seamless owner deletion.
+   - Global `ADMIN_SECRET` environment variable allows master operational deletions.
+3. **Advanced Rate Limiting**:
+   - Reads real client IP through trusted proxy headers (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`).
+4. **Collision & Reserved Slugs**:
+   - Case-insensitive collision detection and reserved keyword protection (`api`, `admin`, `links`, etc.).
 
 ## 4. Verification & Testing Performed
-- Executed `scripts/test-e2e.mjs` against a live Next.js production server:
-  - Homepage (`GET /`) returned HTTP 200.
-  - Shorten endpoint (`POST /api/shorten`) created short link with HTTP 201.
-  - Redirect route (`GET /github-trending`) returned HTTP 307 pointing to `https://github.com/trending`.
-  - Click counter incremented from 0 to 1 upon redirect.
-  - Links list (`GET /api/links`) successfully retrieved persisted records.
-  - Platform stats (`GET /api/stats`) verified active links and total redirects.
-  - Invalid route (`GET /invalid-code-xyz`) redirected to `/link-not-found`.
-- `npm run build` executed and passed with code 0 with all routes properly compiled.
+- **Production Build (`npm run build`)**: Passed with exit code 0.
+- **Automated Test Suite (`scripts/test-e2e.mjs`)**: 23 assertions executed and passed:
+  - Test 1: Homepage 200 OK.
+  - Test 2: Core shortening 201 Created with `manageKey`.
+  - Test 3: Custom vanity slug generation.
+  - Test 4: Dynamic redirect 307 to destination.
+  - Test 5: Duplicate custom slug returns 409 Conflict.
+  - Test 6: Reserved slug `/admin` returns 400 Bad Request.
+  - Test 7: SSRF attempt on `127.0.0.1` and `169.254.169.254` blocked with 400.
+  - Test 8: Malicious `javascript:` protocol rejected with 400.
+  - Test 9: Unauthorized deletion without key rejected with 403 Forbidden.
+  - Test 10: Authorized deletion with `manageKey` succeeded with 200 OK.
+  - Test 11: Link expiration redirected to `/link-expired`.
+  - Test 12: High-density QR code rendered valid PNG data URL.
+  - Test 13: Platform telemetry metrics returned active counts.
 
 ## 5. Next Steps
-- Commit clean state to local git.
-- Coordinate with user for remote GitHub repository push and Vercel/Railway deployment.
+- Await user's GitHub repository URL.
+- Configure remote origin and push clean master branch.
+- Deploy to Vercel/Railway with Supabase PostgreSQL connection.

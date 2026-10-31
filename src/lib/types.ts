@@ -14,6 +14,7 @@ export interface LinkRecord {
   clicks: number;
   lastClickedAt: string | null;
   clickLogs: ClickEvent[];
+  manageKey: string; // Cryptographic key required for authorized deletion
 }
 
 export interface CreateLinkParams {
@@ -32,13 +33,14 @@ export interface GlobalStats {
 export interface ShortenApiResponse {
   success: boolean;
   data?: {
+    id: string;
     code: string;
     shortUrl: string;
     originalUrl: string;
     createdAt: string;
     expiresAt: string | null;
     clicks: number;
+    manageKey: string;
   };
   error?: string;
 }
-

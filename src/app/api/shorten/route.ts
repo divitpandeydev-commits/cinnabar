@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLink, isCodeAvailable } from "@/lib/db";
-import { isRateLimited } from "@/lib/rate-limit";
+import { extractClientIp, isRateLimited } from "@/lib/rate-limit";
 import { validateAndNormalizeUrl, validateCustomSlug } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Rate limiting by IP or fallback
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "127.0.0.1";
-
-    const { limited } = isRateLimited(ip, 30, 60000); // 30 requests per minute
+    // 1. Rate limiting by real client IP
+    const clientIp = extractClientIp(request.headers);
+    const { limited } = isRateLimited(clientIp, 30, 60000); // 30 requests per minute
     if (limited) {
       return NextResponse.json(
         {
@@ -31,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const { url, customSlug, expiresIn } = body;
 
-    // 3. Validate target URL
+    // 3. Validate target URL with SSRF & protocol checks
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
     const urlValidation = validateAndNormalizeUrl(url, baseUrl);
 
@@ -91,6 +89,7 @@ export async function POST(request: NextRequest) {
           createdAt: newLink.createdAt,
           expiresAt: newLink.expiresAt,
           clicks: newLink.clicks,
+          manageKey: newLink.manageKey,
         },
       },
       { status: 201 }
@@ -101,4 +100,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-

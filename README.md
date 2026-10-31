@@ -8,12 +8,16 @@ A modern, high-performance, and beautifully crafted URL shortening and link inte
 
 - **Blazing-Fast Redirections**: Server-side HTTP 307 redirects executing in single-digit milliseconds via Next.js App Router dynamic routes (`/[code]`).
 - **Deep Red & Dark Brown Design**: Bespoke visual identity combining rich crimson, roasted espresso, warm cream parchment, and meticulous micro-interactions.
-- **Custom Slugs & Aliases**: Generate clean, branded vanity URLs (e.g., `cinnabar.app/launch`).
-- **QR Code Studio**: Instant high-resolution QR code rendering with single-click PNG download for print and digital campaigns.
-- **Link Expiration Engine**: Set URLs to auto-expire after 1 hour, 24 hours, 7 days, 30 days, or persist forever.
-- **Persistent Storage**: Disk-backed atomic database engine with transaction-safe JSON persistence, click logging, device identification, and cloud database adapter readiness (PostgreSQL/Supabase).
-- **Real-Time Link Management**: Live click tracking, instant copy with tactile feedback, and link deletion.
-- **Strict Validation & Security**: RFC-compliant URL parsing, protocol enforcement (`https://`), and rate limiting to prevent abuse.
+- **Dual-Driver Storage Architecture**:
+  - **Cloud PostgreSQL (Supabase)**: Multi-region, zero-maintenance database persistence ready for serverless platforms like Vercel and Netlify.
+  - **Atomic Disk Engine**: Crash-proof local file storage with in-memory caching for zero-config local development and self-hosted environments.
+- **Custom Vanity Slugs**: Generate clean, branded vanity URLs (e.g., `cinnabar.app/launch`) with collision prevention and reserved keyword guards.
+- **Enterprise Security & SSRF Protection**: Strict RFC URL parsing, HTTPS protocol enforcement, and automatic blocking of private/loopback/cloud metadata IP ranges (`127.0.0.1`, `169.254.169.254`, `metadata.google.internal`).
+- **Cryptographic Deletion Authorization**: Each created link generates a private `manageKey` preventing unauthorized deletion while allowing legitimate creators to manage links.
+- **Vector QR Code Studio**: Instant high-resolution QR code rendering with single-click PNG download for print and digital campaigns.
+- **Link Expiration Engine**: Set URLs to auto-expire after 1 hour, 24 hours, 7 days, 30 days, or persist permanently.
+- **Searchable Link Ledger**: Real-time management table with live click counters, search filtering, copy confirmations, and instant deletion.
+- **Sliding-Window Rate Limiting**: Abuse prevention with trusted proxy IP extraction (`CF-Connecting-IP`, `X-Forwarded-For`).
 - **Accessible & Responsive**: Fully responsive across mobile, tablet, laptop, and ultra-wide screens, with full reduced-motion support.
 
 ---
@@ -30,7 +34,7 @@ A modern, high-performance, and beautifully crafted URL shortening and link inte
 | **Icons** | Lucide React |
 | **Identifier Engine** | NanoID (URL-safe base62) |
 | **QR Engine** | QRCode SVG/Canvas generator |
-| **Storage** | Atomic Disk-Backed Engine (`src/lib/db.ts`) with PostgreSQL adapter |
+| **Database** | Supabase PostgreSQL (`@supabase/supabase-js`) + Atomic Disk Driver |
 
 ---
 
@@ -58,7 +62,7 @@ A modern, high-performance, and beautifully crafted URL shortening and link inte
    ```bash
    cp .env.example .env.local
    ```
-   *(Defaults work out of the box without any third-party services required).*
+   *(Defaults work out of the box with the local atomic engine without third-party services).*
 
 4. **Start the Development Server**:
    ```bash
@@ -69,13 +73,32 @@ A modern, high-performance, and beautifully crafted URL shortening and link inte
 
 ---
 
+## Production Database Setup (Supabase PostgreSQL)
+
+For deployment on Vercel, Netlify, or serverless platforms where local disk storage is ephemeral, configure Supabase:
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In the Supabase Dashboard, open **SQL Editor** and paste the contents of [`supabase/schema.sql`](./supabase/schema.sql). Click **Run**.
+3. In **Project Settings** > **API**, copy your **Project URL** and **anon/public key**.
+4. Set the environment variables in `.env.local` or your hosting dashboard:
+   ```env
+   SUPABASE_URL="https://your-project-id.supabase.co"
+   SUPABASE_ANON_KEY="your-anon-key"
+   ```
+5. Cinnabar will automatically switch to the Supabase cloud driver.
+
+---
+
 ## Environment Variables
 
 | Variable | Description | Default |
 |---|---|---|
-| `NEXT_PUBLIC_BASE_URL` | The public domain of your application | `http://localhost:3000` |
-| `DATABASE_URL` | Optional PostgreSQL / Supabase connection string | *(File-based if not set)* |
-| `NODE_ENV` | Application environment | `development` |
+| `NEXT_PUBLIC_BASE_URL` | Public domain of the application | `http://localhost:3000` |
+| `SUPABASE_URL` | Supabase project URL | *(File-based if omitted)* |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key | *(File-based if omitted)* |
+| `ADMIN_SECRET` | Secret key for administrative master deletion | Optional |
+| `ALLOW_LOCAL_URLS` | Allow shortening `localhost` (dev only) | `false` |
+| `NODE_ENV` | Application environment | `production` |
 
 ---
 
@@ -98,73 +121,44 @@ A modern, high-performance, and beautifully crafted URL shortening and link inte
 {
   "success": true,
   "data": {
+    "id": "link_1793434287830_f37x73",
     "code": "trending-repos",
-    "shortUrl": "http://localhost:3000/trending-repos",
+    "shortUrl": "https://cinnabar.app/trending-repos",
     "originalUrl": "https://github.com/trending",
     "createdAt": "2026-10-31T13:30:00.000Z",
     "expiresAt": "2026-11-01T13:30:00.000Z",
-    "clicks": 0
+    "clicks": 0,
+    "manageKey": "b2f901a89c4de83f71c49120a109ec78"
   }
 }
 ```
 
-### 2. Fetch User Links
-`GET /api/links`
+### 2. Fetch Links Ledger
+`GET /api/links?limit=50`
 
-Returns a list of shortened links with real-time click statistics and expiration status.
+Returns a list of links with click statistics and expiration status. Sensitive `manageKey` is automatically scrubbed from public output.
 
-### 3. Delete a Shortened URL
-`DELETE /api/links?code={code}`
+### 3. Authorized Link Deletion
+`DELETE /api/links?code={code}&key={manageKey}`
 
-Removes the shortened link from storage.
+Removes the link from persistent storage. Requires the creator's `manageKey` or the server's `ADMIN_SECRET`. Unauthorized requests receive `403 Forbidden`.
 
 ### 4. Fetch Platform Stats
 `GET /api/stats`
 
-Returns live telemetry: total links created, total redirects handled, and average response latency.
+Returns live telemetry: total links, total redirects, active links, and latency.
 
 ---
 
-## Project Structure
+## Production Deployment
 
-```
-├── public/                 # Static assets & favicons
-├── src/
-│   ├── app/
-│   │   ├── [code]/         # Server-side 307 redirect route
-│   │   ├── api/            # REST API endpoints (shorten, links, stats)
-│   │   ├── globals.css     # Design tokens & color variables
-│   │   ├── layout.tsx      # Root layout & typography
-│   │   └── page.tsx        # Landing page & shortener interface
-│   ├── components/         # Reusable modular UI components
-│   │   ├── Navbar.tsx
-│   │   ├── Hero.tsx
-│   │   ├── ShortenerForm.tsx
-│   │   ├── UrlResultCard.tsx
-│   │   ├── UrlHistory.tsx
-│   │   ├── QRCodeModal.tsx
-│   │   ├── Features.tsx
-│   │   ├── HowItWorks.tsx
-│   │   └── Footer.tsx
-│   └── lib/                # Storage, validation & helper functions
-│       ├── db.ts           # Persistent database driver
-│       ├── utils.ts        # URL formatters & validators
-│       └── rate-limit.ts   # Rate limiting protection
-├── AGENTS.md               # AI developer guidelines
-├── AI_TASKS.md             # Development task tracker
-├── PROJECT_MEMORY.md       # Architectural memory ledger
-├── CHANGELOG.md            # Versioned release log
-└── README.md               # GitHub repository documentation
-```
-
----
-
-## Deployment
-
-### Deploying to Vercel
-1. Push your repository to GitHub.
-2. Import the project into [Vercel](https://vercel.com).
-3. Set `NEXT_PUBLIC_BASE_URL` to your production URL (e.g. `https://cinnabar.vercel.app`).
+### Recommended: Deploying to Vercel
+1. Push your code to GitHub.
+2. Go to [vercel.com/new](https://vercel.com/new) and import your repository.
+3. In **Environment Variables**, add:
+   - `NEXT_PUBLIC_BASE_URL`: Your production URL (e.g., `https://cinnabar.app`)
+   - `SUPABASE_URL`: Your Supabase Project URL
+   - `SUPABASE_ANON_KEY`: Your Supabase Anon Key
 4. Click **Deploy**.
 
 ---

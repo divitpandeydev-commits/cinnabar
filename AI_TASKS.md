@@ -2,7 +2,7 @@
 
 ## 1. Completed Tasks
 - [x] **Project Scaffolding**: Initialized Next.js 16 (App Router) project with TypeScript, React 19, and Tailwind CSS v4.
-- [x] **Dependencies Installation**: Installed `lucide-react`, `framer-motion`, `qrcode`, `@types/qrcode`, and `nanoid`.
+- [x] **Dependencies Installation**: Installed `lucide-react`, `framer-motion`, `qrcode`, `@types/qrcode`, `nanoid`, and `@supabase/supabase-js`.
 - [x] **Documentation Bootstrap**: Established `AGENTS.md`, `AI_TASKS.md`, `PROJECT_MEMORY.md`, `CHANGELOG.md`, and `README.md`.
 - [x] **Phase 1 — Inspection & Planning**: Defined architecture, route structure, API contracts, and persistent database design.
 - [x] **Phase 2 — Design System & Visual Identity**:
@@ -15,11 +15,12 @@
   - Built `HowItWorks.tsx` with 3-step operational workflow.
   - Built `Footer.tsx` with operational system status indicator and back-to-top control.
 - [x] **Phase 5 & 6 — Backend & Persistent Database Engine**:
-  - Built `src/lib/db.ts` with atomic JSON file persistence, in-memory cache, click counter, and device parser.
-  - Built `src/lib/utils.ts` with URL normalization, domain validation, loop prevention, and slug sanitization.
-  - Built `src/lib/rate-limit.ts` with sliding window rate limiting.
+  - Implemented dual-driver architecture in `src/lib/db.ts` supporting both Supabase PostgreSQL and local atomic disk persistence.
+  - Authored `supabase/schema.sql` with tables, indexes, stored procedure for click tracking, and RLS policies.
+  - Built `src/lib/utils.ts` with URL normalization, SSRF/private host blocking, loop prevention, and slug sanitization.
+  - Built `src/lib/rate-limit.ts` with sliding window rate limiting and trusted proxy header resolution.
   - Built `POST /api/shorten` API endpoint with validation, custom alias collision checking, and expiration support.
-  - Built `GET /api/links` and `DELETE /api/links` API endpoints for link history management.
+  - Built `GET /api/links` and `DELETE /api/links` API endpoints with cryptographic `manageKey` authorization.
   - Built `GET /api/stats` endpoint for real-time telemetry metrics.
   - Built `app/[code]/route.ts` server-side 307 redirect route with asynchronous telemetry logging.
   - Built `app/link-not-found/page.tsx` and `app/link-expired/page.tsx` for custom status pages.
@@ -29,20 +30,21 @@
   - Built `QRCodeModal.tsx` rendering high-density QR code with PNG download capability.
   - Built `UrlHistory.tsx` with search filtering, click indicators, and instant deletion.
   - Built `AnalyticsPreview.tsx` displaying real-time links, clicks, and live telemetry log stream.
-- [x] **Phase 8 — Testing & Verification**:
-  - Resolved Next.js 16 route config and Turbopack compiler constraints.
-  - Executed automated end-to-end integration test (`scripts/test-e2e.mjs`) confirming 200 homepage, 201 shorten, 307 redirect, click increments, stats, and 404 handling.
+- [x] **Phase 8 & 9 — Production Security Audit & Verification**:
+  - Patched SSRF vulnerability by blocking private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x).
+  - Patched unauthorized deletion vulnerability with cryptographic `manageKey` token enforcement.
+  - Executed automated test suite (`scripts/test-e2e.mjs`) covering 13 test scenarios: 23 assertions passed, 0 failed.
   - Verified zero-error production build (`npm run build`).
 
 ## 2. Currently Working
-- [ ] **Phase 10 — Git Version Control & Deployment Preparation**:
-  - Stage and create clean git commit with meaningful message.
-  - Verify repository structure and prepare production deployment instructions.
+- [ ] **Phase 10 — GitHub Integration & Remote Repository Link**:
+  - Waiting for user's remote GitHub repository URL before pushing commits.
 
 ## 3. Pending Tasks
-- [ ] **Phase 11 — Remote Repository Push & Deployment**:
-  - Connect to user's remote GitHub repository once provided.
-  - Deploy to Vercel / Railway / Render with custom domain or standard URL.
+- [ ] **Phase 11 — Live Deployment & Production Smoke Testing**:
+  - Deploy to Vercel/Railway.
+  - Connect production Supabase PostgreSQL database.
+  - Verify live public URL and redirection across internet.
 
 ## 4. Future Improvements
 - [ ] Distributed Redis cache adapter for multi-region edge instances.

@@ -4,55 +4,43 @@ All notable changes to the **Cinnabar** URL Shortener project will be documented
 
 ---
 
-### [1.0.0] - 2026-10-31
-#### Production Release Baseline & Complete Feature Implementation
+### [1.1.0] - 2026-10-31
+#### Production Architecture Hardening & Cloud Database Migration
 **Files Created / Modified:**
-- `src/lib/types.ts`: Defined data contracts for links, click logs, and statistics.
-- `src/lib/utils.ts`: Implemented URL normalization, validation, slug sanitization, and device parsing.
-- `src/lib/rate-limit.ts`: Implemented in-memory sliding window rate limiter.
-- `src/lib/db.ts`: Implemented persistent disk storage engine with atomic writes and cache.
-- `src/app/api/shorten/route.ts`: Built URL shortening API with custom slug and expiration support.
-- `src/app/api/links/route.ts`: Built link listing and deletion endpoint.
-- `src/app/api/stats/route.ts`: Built real-time platform metrics endpoint.
-- `src/app/[code]/route.ts`: Built server-side HTTP 307 redirect route with asynchronous telemetry.
-- `src/app/link-not-found/page.tsx`: Built branded 404 handler for invalid short codes.
-- `src/app/link-expired/page.tsx`: Built branded notification page for expired links.
-- `src/components/Navbar.tsx`: Built header with navigation and responsive mobile drawer.
-- `src/components/Hero.tsx`: Built hero section with animated URL compression visualizer.
-- `src/components/ShortenerForm.tsx`: Built input form with vanity slug and expiration options.
-- `src/components/UrlResultCard.tsx`: Built result card with copy button and quick actions.
-- `src/components/UrlHistory.tsx`: Built link ledger with live click indicators and search filter.
-- `src/components/QRCodeModal.tsx`: Built high-density QR code studio with PNG download.
-- `src/components/Features.tsx`: Built 6-card architectural feature section with Framer Motion.
-- `src/components/HowItWorks.tsx`: Built 3-step operational workflow section.
-- `src/components/AnalyticsPreview.tsx`: Built live telemetry dashboard and click stream.
-- `src/components/Footer.tsx`: Built footer with system status and quick links.
-- `src/components/icons/GithubIcon.tsx`: Built SVG vector icon component.
-- `scripts/test-e2e.mjs`: Built automated end-to-end integration test suite.
-- `.env.example`: Configured environment variables.
-- `.gitignore`: Configured exclusions for temporary files and local database.
-- `AGENTS.md`, `AI_TASKS.md`, `PROJECT_MEMORY.md`, `README.md`: Updated comprehensive documentation.
+- `src/lib/db.ts`: Implemented dual-driver architecture with Supabase PostgreSQL client and atomic disk engine.
+- `supabase/schema.sql`: Authored PostgreSQL schema with performance indexes, atomic click procedure, and RLS policies.
+- `src/lib/types.ts`: Added `manageKey` cryptographic field to `LinkRecord` and API response.
+- `src/lib/utils.ts`: Added SSRF protection (private IP / cloud metadata blocking), expanded reserved slugs, and `generateManageKey()`.
+- `src/lib/rate-limit.ts`: Added trusted proxy header client IP extraction (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`).
+- `src/app/api/shorten/route.ts`: Integrated client IP rate limiter and `manageKey` return.
+- `src/app/api/links/route.ts`: Implemented cryptographic authorization check on link deletion and scrubbed keys from public output.
+- `src/app/page.tsx`: Implemented creator `manageKey` storage in `localStorage` and authenticated deletion requests.
+- `scripts/test-e2e.mjs`: Expanded comprehensive integration test suite covering 13 test suites and 23 assertions.
+- `.env.example`: Documented Supabase environment variables, `ADMIN_SECRET`, and production configuration.
+- `README.md`: Added production deployment guide, Supabase migration steps, and security documentation.
+- `AI_TASKS.md`, `PROJECT_MEMORY.md`: Updated development ledger and task registry.
 
-**Features Added:**
-- Instant server-side 307 URL redirection with sub-15ms latency.
-- Collision-resistant 62-base unique short slug generation.
-- Custom vanity alias validation and uniqueness enforcement.
-- Granular link expiration (1 hour, 24 hours, 7 days, 30 days, permanent).
-- High-resolution QR code generator with single-click PNG download.
-- Searchable link ledger with real-time click tracking and instant deletion.
-- Real-time telemetry dashboard with live click stream.
-- Sliding window rate limiting protecting against abuse.
-
-**Design Changes:**
-- Established bespoke editorial Deep Red (`#991B1B`) and Roasted Espresso (`#1F120B`) color system.
-- Added tactile button feedback, copy confirmation toasts, and responsive micro-interactions.
+**Features & Improvements Added:**
+- Supabase PostgreSQL persistence solving serverless ephemeral storage restrictions.
+- Cryptographic authorization for link deletion (`403 Forbidden` defense against unauthorized deletion).
+- Server-Side Request Forgery (SSRF) defense blocking private subnets and cloud metadata endpoints (`169.254.169.254`).
+- Duplicate vanity slug collision rejection (`409 Conflict`).
+- System reserved keyword guard protecting core routes (`400 Bad Request`).
+- Automated 23-assertion production test suite verified.
 
 **Reason for Change:**
-Initial complete production release satisfying all Phase 1–8 and Phase 12 requirements.
+Production deployment readiness and security audit per user request.
+
+---
+
+### [1.0.0] - 2026-10-31
+#### Production Release Baseline & Complete Feature Implementation
+- Scaffolded Next.js 16 (App Router) project with React 19, TypeScript, and Tailwind CSS v4.
+- Established Deep Red and Roasted Brown editorial design system.
+- Built all frontend components, server-side 307 redirect engine, QR generator studio, and link ledger.
 
 ---
 
 ### [0.1.0] - 2026-10-31
 #### Initial Project Architecture & Documentation Baseline
-- Scaffolded Next.js 16 (App Router) project with React 19, TypeScript, and Tailwind CSS v4.
-- Installed core packages and established 5 mandatory AI documentation files.
+- Initial scaffolding and mandatory markdown files.
