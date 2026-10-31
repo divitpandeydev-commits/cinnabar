@@ -6,7 +6,7 @@
 - **Architecture**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4 + Framer Motion + Supabase PostgreSQL
 - **GitHub Repository**: `https://github.com/divitpandeydev-commits/cinnabar.git`
 - **Active Branch**: `main`
-- **Current Status**: Production deployment ready. Advanced PostgreSQL privilege hardening completed (table-level revoke + column-level grants + search_path defense + restricted RPC execution). All 23 integration tests verified.
+- **Current Status**: Production deployment ready. Live Supabase database integration and security verification completed with 100% passing checks (15/15 live DB checks, 23/23 application E2E tests, 0 build/TypeScript errors).
 
 ## 2. Design System & Visual Identity
 - **Palette**: Strictly adheres to the **Deep Red and Dark Brown** combination:
@@ -58,22 +58,23 @@
    - Client components never import `db.ts` or instantiate Supabase directly.
 
 ## 4. Verification & Testing Performed
-- **Production Build (`npm run build`)**: Passed with exit code 0.
-- **Automated Test Suite (`scripts/test-e2e.mjs`)**: 23 assertions executed and passed:
-  - Test 1: Homepage 200 OK.
-  - Test 2: Core shortening 201 Created with `manageKey`.
-  - Test 3: Custom vanity slug generation.
-  - Test 4: Dynamic redirect 307 to destination.
-  - Test 5: Duplicate custom slug returns 409 Conflict.
-  - Test 6: Reserved slug `/admin` returns 400 Bad Request.
-  - Test 7: SSRF attempt on `127.0.0.1` and `169.254.169.254` blocked with 400.
-  - Test 8: Malicious `javascript:` protocol rejected with 400.
-  - Test 9: Unauthorized deletion without key rejected with 403 Forbidden.
-  - Test 10: Authorized deletion with `manageKey` succeeded with 200 OK.
-  - Test 11: Link expiration redirected to `/link-expired`.
-  - Test 12: High-density QR code rendered valid PNG data URL.
-  - Test 13: Platform telemetry metrics returned active counts.
-- **Supabase Live Test Suite (`scripts/verify-supabase.mjs`)**: Authored standalone test verifying all 8 live database conditions.
+- **Supabase Live Test Suite (`scripts/verify-supabase.mjs`)**: Verified all 15 security and integration conditions against live Supabase PostgreSQL:
+  - Anon query on `manage_key` blocked (column privilege enforced).
+  - Anon direct `DELETE` blocked by RLS.
+  - Anon direct `INSERT` blocked by RLS.
+  - Anon RPC invocation of `record_link_click` blocked (permission denied).
+  - Anon RPC invocation of `delete_link_with_key` blocked (permission denied).
+  - Anon RPC invocation of `create_short_link` blocked (permission denied).
+  - Public read on `public.public_links` allowed for redirection.
+  - Service-role link creation succeeded.
+  - Public redirect query executed without exposing `manage_key`.
+  - Public redirect destination resolution verified.
+  - Server-side `record_link_click` succeeded and incremented database counter.
+  - Unauthorized deletion with invalid key rejected (`delFail === false`).
+  - Authorized deletion with matching key succeeded (`delPass === true`).
+  - Confirmed permanent deletion from database.
+- **Production Build (`npm run build`)**: Passed with exit code 0, 0 TypeScript errors.
+- **Automated Test Suite (`scripts/test-e2e.mjs`)**: 23 assertions executed and passed against live Next.js 16 server connected to Supabase.
 
 ## 5. Next Steps
 - Execute the hardened SQL migration in Supabase SQL editor.

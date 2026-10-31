@@ -42,13 +42,20 @@
   - Revoked default `PUBLIC` execution privileges from all stored procedures (`record_link_click`, `create_short_link`, `delete_link_with_key`), restricting execution strictly to `service_role`.
   - Authored standalone live Supabase verification script `scripts/verify-supabase.mjs`.
   - Verified all 23 integration and security assertions with zero failures.
+- [x] **Phase 12 — Live Database Integration & Security Verification**:
+  - Configured `.env.local` with live Supabase credentials using modern key formats (`sb_publishable_...` and `sb_secret_...`).
+  - Implemented automatic Supabase URL normalization (`/rest/v1/` stripping) in `src/lib/db.ts` and `scripts/verify-supabase.mjs`.
+  - Executed `scripts/verify-supabase.mjs` against live Supabase project: 15/15 tests passed (column privileges, RLS blocking direct INSERT/DELETE, RPC revokes, public view safety, server-side link creation, click tracking, and key-authorized deletion).
+  - Executed `scripts/test-e2e.mjs`: 23/23 tests passed against live running Next.js application connected to Supabase.
+  - Executed production build (`npm run build`) and TypeScript type-check: 0 errors.
+  - Verified `.env.local` is completely excluded from Git via `.gitignore`.
 
 ## 2. Currently Working
 - [ ] **GitHub Authentication & First Push**:
   - Ready for user push to `https://github.com/divitpandeydev-commits/cinnabar.git`.
 
 ## 3. Pending Tasks
-- [ ] **Phase 12 — Live Deployment & Production Smoke Testing**:
+- [ ] **Phase 13 — Live Deployment & Production Smoke Testing**:
   - Deploy to Vercel with Supabase environment variables.
   - Verify live public URL and redirection across internet.
 

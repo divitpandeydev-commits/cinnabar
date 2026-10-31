@@ -4,6 +4,22 @@ All notable changes to the **Cinnabar** URL Shortener project will be documented
 
 ---
 
+### [1.5.0] - 2026-10-31
+#### Live Supabase Database Integration & Security Verification
+**Files Modified:**
+- `.env.local`: Configured live Supabase database credentials with new key format (`sb_publishable_...` and `sb_secret_...`), verified untracked and excluded in `.gitignore`.
+- `src/lib/db.ts`: Added robust URL normalization to strip trailing `/rest/v1/` or `/rest/v1` from `SUPABASE_URL`.
+- `scripts/verify-supabase.mjs`: Added full test coverage for anonymous RPC denials (`create_short_link`), public redirect resolution, server-side click counter increments, and authorized vs unauthorized deletion against live PostgreSQL.
+- `scripts/test-e2e.mjs`: Updated test fixtures with dynamic slugs for repeatable zero-conflict test executions.
+- `AI_TASKS.md`, `PROJECT_MEMORY.md`: Updated with live database test results and architectural notes.
+
+**Live Verification Results:**
+- Live Supabase Security Verification: 15/15 tests passed.
+- Application End-to-End Suite: 23/23 tests passed.
+- Production Build & TypeScript Verification: 0 errors.
+
+---
+
 ### [1.4.0] - 2026-10-31
 #### Advanced PostgreSQL Privilege & SECURITY DEFINER Hardening
 **Files Created / Modified:**

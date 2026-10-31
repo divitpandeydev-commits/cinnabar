@@ -111,10 +111,11 @@ async function runProductionTestSuite() {
     // -------------------------------------------------------------------------
     // TEST 3: Custom Vanity Slug Creation & Redirection
     // -------------------------------------------------------------------------
-    console.log("\n[TEST 3] Verifying Custom Vanity Slug (POST /api/shorten with customSlug)");
+    const testCustomSlug = `e2e-slug-${Date.now().toString(36)}`;
+    console.log(`\n[TEST 3] Verifying Custom Vanity Slug (POST /api/shorten with customSlug=${testCustomSlug})`);
     const customPayload = JSON.stringify({
       url: "https://github.com/torvalds/linux",
-      customSlug: "linux-kernel",
+      customSlug: testCustomSlug,
     });
     const customRes = await request(
       {
@@ -131,15 +132,15 @@ async function runProductionTestSuite() {
     );
     assert(customRes.statusCode === 201, `Custom slug returned 201 (got ${customRes.statusCode})`);
     const customData = JSON.parse(customRes.body);
-    assert(customData.data.code === "linux-kernel", "Assigned exact custom slug");
+    assert(customData.data.code === testCustomSlug, "Assigned exact custom slug");
     const linuxManageKey = customData.data.manageKey;
 
     // Test Redirect
-    console.log("\n[TEST 4] Verifying HTTP 307 Redirection (GET /linux-kernel)");
+    console.log(`\n[TEST 4] Verifying HTTP 307 Redirection (GET /${testCustomSlug})`);
     const redirectRes = await request({
       hostname: "127.0.0.1",
       port: PORT,
-      path: "/linux-kernel",
+      path: `/${testCustomSlug}`,
       method: "GET",
     });
     assert(redirectRes.statusCode === 307, `Redirect status is 307 (got ${redirectRes.statusCode})`);
@@ -250,7 +251,7 @@ async function runProductionTestSuite() {
     const unauthDel = await request({
       hostname: "127.0.0.1",
       port: PORT,
-      path: "/api/links?code=linux-kernel",
+      path: `/api/links?code=${testCustomSlug}`,
       method: "DELETE",
     });
     assert(unauthDel.statusCode === 403, `Deletion without key rejected with 403 (got ${unauthDel.statusCode})`);
@@ -259,7 +260,7 @@ async function runProductionTestSuite() {
     const authDel = await request({
       hostname: "127.0.0.1",
       port: PORT,
-      path: `/api/links?code=linux-kernel&key=${linuxManageKey}`,
+      path: `/api/links?code=${testCustomSlug}&key=${linuxManageKey}`,
       method: "DELETE",
     });
     assert(authDel.statusCode === 200, `Deletion with valid key succeeded with 200`);
@@ -268,9 +269,10 @@ async function runProductionTestSuite() {
     // TEST 11: Link Expiration
     // -------------------------------------------------------------------------
     console.log("\n[TEST 11] Verifying Link Expiration Flow");
+    const expSlug = `exp-${Date.now().toString(36)}`;
     const expPayload = JSON.stringify({
       url: "https://news.ycombinator.com",
-      customSlug: "expired-test",
+      customSlug: expSlug,
       expiresIn: 1, // 1 second lifespan
     });
     await request(
@@ -291,7 +293,7 @@ async function runProductionTestSuite() {
     const expRedirect = await request({
       hostname: "127.0.0.1",
       port: PORT,
-      path: "/expired-test",
+      path: `/${expSlug}`,
       method: "GET",
     });
     assert(expRedirect.statusCode === 307, "Expired link triggered redirect to notification page");
@@ -301,7 +303,7 @@ async function runProductionTestSuite() {
     // TEST 12: High-Density QR Code Engine
     // -------------------------------------------------------------------------
     console.log("\n[TEST 12] Verifying QR Code Engine Generation");
-    const testQrDataUrl = await QRCode.toDataURL(`http://localhost:${PORT}/linux-kernel`, {
+    const testQrDataUrl = await QRCode.toDataURL(`http://localhost:${PORT}/${testCustomSlug}`, {
       width: 400,
       margin: 2,
     });

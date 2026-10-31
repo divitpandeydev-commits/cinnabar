@@ -21,9 +21,12 @@ const linkCache = new Map<string, LinkRecord>();
 // Supabase Cloud Driver Client
 // Strictly read private server environment variables first.
 // The service-role key is NEVER exposed to the frontend or prefixed with NEXT_PUBLIC_.
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const rawSupabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = rawSupabaseUrl
+  ? rawSupabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "")
+  : undefined;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)?.trim();
 
 // Prefer service-role on server if available; fallback to anon key with RPC security
 const activeSupabaseKey = supabaseServiceKey || supabaseAnonKey;
